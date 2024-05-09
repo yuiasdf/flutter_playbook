@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_playground/weather_screen.dart';
 
 Future<void> main() async {
   runApp(const MyApp());
@@ -44,7 +45,14 @@ class _MyHomePageState extends State<MyHomePage> {
         title: Text(widget.title),
         actions: <Widget>[
           IconButton(
-            onPressed: () {},
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const WeatherScreen(),
+                ),
+              );
+            },
             icon: const Icon(Icons.sunny),
           ),
         ],
