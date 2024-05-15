@@ -27,4 +27,16 @@ jobs:
           cache: true
       - name: Run Golden Tests
         run: flutter test --tags=golden
-        
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+
+      - name: Install modules
+        run: npm ci
+
+      - name: Run reg-suit
+        run: npx reg-suit run
+        env:
+          REGSUIT_CLIENT_ID: ${{ secrets.REGSUIT_CLIENT_ID }}
