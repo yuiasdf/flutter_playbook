@@ -10,6 +10,7 @@
 .svn/
 migrate_working_dir/
 node_modules/
+test/goldens
 
 # IntelliJ related
 *.iml
@@ -46,5 +47,6 @@ app.*.map.json
 
 # don't check in golden failure output
 **/failures/*.png
+test/goldens
 .reg
  /directory_contains_actual_images/

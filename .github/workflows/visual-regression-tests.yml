@@ -8,35 +8,111 @@ on:
     branches: [ main ]
 
 jobs:
-  golden_test:
+  prepare:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
-          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+
       - name: Get Flutter version from .tool-versions
         id: get-version
         run: echo "FLUTTER_VERSION=$(grep flutter .tool-versions | awk '{print $2}' | sed 's/-stable//')" >> $GITHUB_ENV
+
       - name: Set up Flutter
         uses: subosito/flutter-action@v2.8.0
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: 'stable'
           cache: true
-      - name: Run Golden Tests
-        run: flutter test --tags=golden
 
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
           node-version: 18
 
+      # コミットハッシュを取得してキャッシュのキーにする
+      - name: check commit hash
+        id: commithash
+        run: echo "::set-output name=hash::$(git rev-parse HEAD)"
+
+
+      - name: restore reg-suit screenshots
+        uses: actions/cache@v2
+        with:
+          path: .reg/
+          key: reg-${{ steps.commithash.outputs.hash }}-v1
+
+      - name: Check file existence
+        id: check_files
+        uses: andstor/file-existence-action@v1
+        with:
+          files: ".reg/expected"
+
+      - name: Install modules
+        if: steps.check_files.outputs.files_exists == 'false'
+        run: npm ci
+
+      - name: Screenshots main branch
+        if: steps.check_files.outputs.files_exists == 'false'
+        run:  flutter test --update-goldens --tags=golden
+
+      - name: Run reg-suit
+        if: steps.check_files.outputs.files_exists == 'false'
+        run: |
+          npx reg-suit run
+        env:
+          REGSUIT_CLIENT_ID: ${{ secrets.REGSUIT_CLIENT_ID }}
+
+      - name: set reg-suit expected
+        if: steps.check_files.outputs.files_exists == 'false'
+        run: |
+          rm -rf .reg/expected/
+          mv -f .reg/actual/ .reg/expected/
+          mkdir .reg/actual/
+          ls -l .reg/
+
+      - name: upload .reg/
+        uses: actions/upload-artifact@v2
+        with:
+          name: reg-expected
+          path: .reg/
+
+  run:
+    name: Run reg-suit
+    needs: prepare
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      # GitHub Actionsでreg-suitのブランチ名を調べるプラグインを動作させるために必要なコマンド
+      - name: workaround for detached HEAD
+        if: ${{ github.event_name == 'pull_request' }}
+        run: |
+          git checkout ${GITHUB_HEAD_REF#refs/heads/} || git checkout -b ${GITHUB_HEAD_REF#refs/heads/} && git pull
+
       - name: Install modules
         run: npm ci
 
-      - name: Run reg-suit
+      - name: load reg-suit expecteds
+        uses: actions/download-artifact@v2
+        with:
+          name: reg-expected
+          path: .reg/
+
+      - name: screenshots
+        run: flutter test --update-goldens --tags=golden
+
+      - name: run reg-suit
         run: npx reg-suit run
-        env:
-          REGSUIT_CLIENT_ID: ${{ secrets.REGSUIT_CLIENT_ID }}
+
+      - name: upload reg-suit
+        uses: actions/upload-artifact@v2
+        with:
+          name: visual regression test result
+          path: .reg/

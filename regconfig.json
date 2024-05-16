@@ -1,7 +1,7 @@
 {
   "core": {
     "workingDir": ".reg",
-    "actualDir": "directory_contains_actual_images",
+    "actualDir": "test/goldens",
     "thresholdRate": 0,
     "ximgdiff": {
       "invocationType": "client"
